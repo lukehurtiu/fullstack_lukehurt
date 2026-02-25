@@ -1,60 +1,40 @@
 # Community Classes Full-Stack App
 
-This repository is a full-stack starter configured for a **community classes website**.
+This repository is a full-stack starter for a community classes website.
 
-It includes:
+Stack:
 - Frontend: React + Vite (`apps/web`)
 - Backend: Express + TypeScript (`apps/api`)
 - Auth + Database: Supabase
 
-## Product Behavior
+Two roles are supported:
+- `admin`: can create classes and view all classes
+- `member`: can sign up, log in, view classes, and register
 
-Two user roles are supported:
-
-- `admin`
-  - can log in (after being assigned admin role in DB)
-  - can create classes
-  - can view all existing classes
-- `member`
-  - can sign up / log in
-  - can view all existing classes
-  - can register for classes
-
-Role permissions are enforced in the backend API, not only in the frontend.
-Signup always creates `member` users. Promote users to `admin` directly in `users` when needed.
+Role permissions are enforced in the backend API.
 
 ## Data Model (Supabase)
 
-The SQL file at `apps/api/supabase/schema.sql` creates:
-
-- `users`
-  - links each auth user (`auth.users.id`) to a role (`admin` or `member`)
+Run `apps/api/supabase/schema.sql` in Supabase SQL editor. It creates:
+- `users` (links auth user IDs to roles)
 - `community_classes`
-  - class records created by admins
-- `class_registrations`
-  - member registrations to classes
-  - unique `(class_id, member_id)` to prevent duplicate registration
+- `class_registrations` (unique class/member registration)
 
-It also configures row-level security policies aligned with roles.
+`apps/api/prisma/schema.prisma` mirrors these tables for reference.
 
-`apps/api/prisma/schema.prisma` mirrors these tables for reference, but the API uses Supabase client calls directly.
+## 1. Create a Supabase project
 
-## 1. Create a Supabase Project
-
-Create a project in Supabase and collect:
+Collect:
 - Project URL
 - Publishable key
 - Service role key
 
-## 2. Run Database Schema
+## 2. Run database schema
 
-In the Supabase SQL editor, run:
-
+Execute:
 - `apps/api/supabase/schema.sql`
 
-The script also seeds 3 sample classes for testing when at least one row exists in `public.users`.
-
-## 3. Configure Backend Environment
+## 3. Configure backend env (local)
 
 From repo root:
 
@@ -68,31 +48,29 @@ Set values in `apps/api/.env`:
 SUPABASE_URL="https://YOUR-PROJECT-ID.supabase.co"
 SUPABASE_PUBLISHABLE_KEY="YOUR_SUPABASE_PUBLISHABLE_KEY"
 SUPABASE_SERVICE_ROLE_KEY="YOUR_SUPABASE_SERVICE_ROLE_KEY"
-CORS_ORIGINS="http://localhost:5173,https://YOUR-VERCEL-DOMAIN.vercel.app"
+CORS_ORIGINS="https://YOUR-VERCEL-DOMAIN.vercel.app,http://localhost:5173"
 PORT=4000
 ```
 
-## 4. Configure Frontend Environment
+## 4. Configure frontend env (local)
 
 ```powershell
 copy apps\web\.env.example apps\web\.env.local
 ```
 
-For local development:
+Set:
 
 ```env
 VITE_API_BASE_URL="http://localhost:4000"
 ```
 
-For deployed frontend, set this to your deployed API base URL (no trailing slash).
-
-## 5. Install Dependencies
+## 5. Install dependencies
 
 ```bash
 npm install
 ```
 
-## 6. Run Locally
+## 6. Run locally
 
 ```bash
 npm run dev
@@ -101,25 +79,22 @@ npm run dev
 - Web: `http://localhost:5173`
 - API health: `http://localhost:4000/health`
 
-## API Endpoints
+## 7. API endpoints
 
-### Auth
-
+Auth:
 - `POST /api/auth/signup`
-  - body: `{ email, password }`
-  - always creates a `member` user row
 - `POST /api/auth/login`
-  - body: `{ email, password }`
 - `GET /api/auth/me`
-  - header: `Authorization: Bearer <token>`
 
-### Admin
-
+Admin:
 - `GET /api/admin/classes`
 - `POST /api/admin/classes`
-  - body: `{ title, description, instructorName, location, startsAt, capacity }`
 
-To promote a user to admin in Supabase SQL:
+Member:
+- `GET /api/member/classes`
+- `POST /api/member/registrations`
+
+Promote user to admin:
 
 ```sql
 update public.users
@@ -127,22 +102,52 @@ set role = 'admin'
 where id = 'USER_UUID_HERE';
 ```
 
-### Member
+## 8. Production setup (Render API + Vercel Web)
 
-- `GET /api/member/classes`
-  - includes registration status for the logged-in member
-- `POST /api/member/registrations`
-  - body: `{ classId }`
+Important:
+- Keep backend routes unchanged (`/api/...`).
+- Do not add a trailing slash in `VITE_API_BASE_URL`.
+- `VITE_API_BASE_URL` must be only the API origin, for example:
+  - `https://YOUR-RENDER-API.onrender.com`
+- Deployment definitions are included in:
+  - `render.yaml`
+  - `apps/web/vercel.json`
 
-## Deploy Notes
+### 8.1 Render API service
 
-### API service
-Set:
+Use `render.yaml` as the source of truth.
+
+Deploy options:
+1. In Render, create a **Blueprint** service from this repository (recommended).
+2. Or create a Web Service manually and copy settings from `render.yaml`.
+
+`render.yaml` defines:
+- Runtime: `node`
+- Build Command: `npm --workspace apps/api run build`
+- Start Command: `npm --workspace apps/api run start`
+- Health Check Path: `/health`
+
+Set environment variables in Render:
 - `SUPABASE_URL`
 - `SUPABASE_PUBLISHABLE_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
-- `CORS_ORIGINS` including your frontend URL
+- `CORS_ORIGINS=https://YOUR-VERCEL-DOMAIN.vercel.app,http://localhost:5173`
 
-### Frontend service
-Set:
-- `VITE_API_BASE_URL` to deployed API URL (no trailing slash)
+### 8.2 Vercel Web project
+
+Use `apps/web/vercel.json` as the source of truth.
+
+Create/import a Vercel project and set:
+- Root Directory: `apps/web`
+- Build/Output settings: taken from `apps/web/vercel.json`
+
+Set environment variable in Vercel:
+- `VITE_API_BASE_URL=https://YOUR-RENDER-API.onrender.com`
+
+Redeploy after setting env vars. Do not add a trailing slash.
+
+### 8.3 Verify production
+
+1. Open `https://YOUR-RENDER-API.onrender.com/health` and confirm `{"status":"ok"}`.
+2. Open your Vercel URL and test signup/login.
+3. If browser shows CORS errors, verify `CORS_ORIGINS` exactly matches your Vercel domain.

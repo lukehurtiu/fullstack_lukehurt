@@ -450,5 +450,5 @@ app.post("/api/member/registrations", async (request, response) => {
 });
 
 app.listen(port, () => {
-  console.log(`API listening on http://localhost:${port}`);
+  console.log(`API listening on port ${port}`);
 });

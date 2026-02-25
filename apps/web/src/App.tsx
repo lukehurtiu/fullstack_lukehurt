@@ -44,7 +44,7 @@ async function parseApiJson<T>(response: Response): Promise<T> {
   const body = await response.text();
   if (body.trimStart().startsWith("<!DOCTYPE")) {
     throw new Error(
-      "Received HTML instead of API JSON. Verify VITE_API_BASE_URL and that the API is running on http://localhost:4000."
+      "Received HTML instead of API JSON. Verify VITE_API_BASE_URL (no trailing slash) and that the API is reachable."
     );
   }
 
