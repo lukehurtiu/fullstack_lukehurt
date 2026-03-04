@@ -1,10 +1,14 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import cors from "cors";
 import dotenv from "dotenv";
 import express, { Request, Response } from "express";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
-dotenv.config();
+const currentFilePath = fileURLToPath(import.meta.url);
+const apiRootDir = path.resolve(path.dirname(currentFilePath), "..");
+dotenv.config({ path: path.join(apiRootDir, ".env") });
 
 type UserRole = "admin" | "member";
 
@@ -20,7 +24,8 @@ type AuthenticatedUser = {
 
 const port = Number(process.env.PORT ?? 4000);
 const supabaseUrl = process.env.SUPABASE_URL;
-const supabasePublishableKey = process.env.SUPABASE_PUBLISHABLE_KEY;
+const supabasePublishableKey =
+  process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.SUPABASE_ANON_KEY;
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const corsOriginsRaw =
   process.env.CORS_ORIGINS ?? process.env.CORS_ORIGIN ?? "http://localhost:5173";
@@ -30,8 +35,19 @@ const allowedOrigins = corsOriginsRaw
   .filter(Boolean);
 
 if (!supabaseUrl || !supabasePublishableKey || !supabaseServiceRoleKey) {
+  const missingKeys: string[] = [];
+  if (!supabaseUrl) {
+    missingKeys.push("SUPABASE_URL");
+  }
+  if (!supabasePublishableKey) {
+    missingKeys.push("SUPABASE_PUBLISHABLE_KEY (or SUPABASE_ANON_KEY)");
+  }
+  if (!supabaseServiceRoleKey) {
+    missingKeys.push("SUPABASE_SERVICE_ROLE_KEY");
+  }
+
   throw new Error(
-    "Missing Supabase configuration. Set SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, and SUPABASE_SERVICE_ROLE_KEY."
+    `Missing Supabase configuration: ${missingKeys.join(", ")}. Set these in apps/api/.env or in your deployment environment.`
   );
 }
 

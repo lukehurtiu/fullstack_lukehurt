@@ -26,7 +26,7 @@ Run `apps/api/supabase/schema.sql` in Supabase SQL editor. It creates:
 
 Collect:
 - Project URL
-- Publishable key
+- Publishable key (or anon key label in older Supabase UI)
 - Service role key
 
 ## 2. Run database schema
@@ -47,6 +47,8 @@ Set values in `apps/api/.env`:
 ```env
 SUPABASE_URL="https://YOUR-PROJECT-ID.supabase.co"
 SUPABASE_PUBLISHABLE_KEY="YOUR_SUPABASE_PUBLISHABLE_KEY"
+# Optional alias if you have an anon key name in Supabase:
+# SUPABASE_ANON_KEY="YOUR_SUPABASE_ANON_KEY"
 SUPABASE_SERVICE_ROLE_KEY="YOUR_SUPABASE_SERVICE_ROLE_KEY"
 CORS_ORIGINS="https://YOUR-VERCEL-DOMAIN.vercel.app,http://localhost:5173"
 PORT=4000
@@ -78,6 +80,16 @@ npm run dev
 
 - Web: `http://localhost:5173`
 - API health: `http://localhost:4000/health`
+
+### Troubleshooting Supabase connection
+
+- This project connects to Supabase from the backend only (`apps/api`), not directly from `apps/web`.
+- Ensure `apps/api/.env` exists; `apps/web/.env` values are not read by the API.
+- Required backend vars:
+  - `SUPABASE_URL`
+  - `SUPABASE_PUBLISHABLE_KEY` (or `SUPABASE_ANON_KEY`)
+  - `SUPABASE_SERVICE_ROLE_KEY`
+- If API startup fails, check the exact missing variable names in the thrown error.
 
 ## 7. API endpoints
 
