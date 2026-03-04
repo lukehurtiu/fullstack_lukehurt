@@ -95,6 +95,10 @@ const registerSchema = z.object({
   classId: z.string().uuid()
 });
 
+const llmQuestionSchema = z.object({
+  question: z.string().trim().min(2).max(4000)
+});
+
 const classInsertSchema = z
   .object({
     created_by: z.string().uuid(),
@@ -117,6 +121,26 @@ type CommunityClass = {
   created_at: string;
   created_by: string;
 };
+
+type GroqChatResponse = {
+  choices?: Array<{
+    message?: {
+      content?: string | null;
+    };
+  }>;
+  model?: string;
+};
+
+function readGroqConfig() {
+  // Refresh env from file so local key edits are picked up without a full process restart.
+  dotenv.config({ path: path.join(apiRootDir, ".env"), override: true });
+
+  return {
+    apiKey: process.env.GROQ_API_KEY,
+    model: process.env.GROQ_MODEL ?? "llama-3.3-70b-versatile",
+    apiUrl: process.env.GROQ_API_URL ?? "https://api.groq.com/openai/v1/chat/completions"
+  };
+}
 
 function readBearerToken(request: Request) {
   const header = request.headers.authorization;
@@ -279,6 +303,79 @@ app.get("/api/auth/me", async (request, response) => {
     userId: user.id,
     role: user.role
   });
+});
+
+app.post("/api/llm/ask", async (request, response) => {
+  const user = await requireUser(request, response);
+  if (!user) {
+    return;
+  }
+
+  const groqConfig = readGroqConfig();
+
+  if (!groqConfig.apiKey) {
+    response.status(500).json({
+      error: "Groq API key is not configured on the backend. Set GROQ_API_KEY."
+    });
+    return;
+  }
+
+  const parsed = llmQuestionSchema.safeParse(request.body);
+  if (!parsed.success) {
+    response.status(400).json({ error: "Invalid question payload." });
+    return;
+  }
+
+  try {
+    const groqResponse = await fetch(groqConfig.apiUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${groqConfig.apiKey}`
+      },
+      body: JSON.stringify({
+        model: groqConfig.model,
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are a concise assistant helping users with a community classes web app. Give practical, direct answers."
+          },
+          {
+            role: "user",
+            content: parsed.data.question
+          }
+        ]
+      })
+    });
+
+    if (!groqResponse.ok) {
+      const details = await groqResponse.text();
+      response.status(502).json({
+        error: "Groq request failed.",
+        details: details.slice(0, 300)
+      });
+      return;
+    }
+
+    const data = (await groqResponse.json()) as GroqChatResponse;
+    const answer = data.choices?.[0]?.message?.content?.trim();
+
+    if (!answer) {
+      response.status(502).json({ error: "Groq returned an empty response." });
+      return;
+    }
+
+    response.json({
+      answer,
+      model: data.model ?? groqConfig.model
+    });
+  } catch (error) {
+    response.status(502).json({
+      error: "Could not reach Groq.",
+      details: error instanceof Error ? error.message : "Unknown Groq error"
+    });
+  }
 });
 
 app.get("/api/admin/classes", async (request, response) => {

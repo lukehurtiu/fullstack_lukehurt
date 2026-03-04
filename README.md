@@ -6,6 +6,7 @@ Stack:
 - Frontend: React + Vite (`apps/web`)
 - Backend: Express + TypeScript (`apps/api`)
 - Auth + Database: Supabase
+- LLM Q&A: Groq (via backend endpoint)
 
 Two roles are supported:
 - `admin`: can create classes and view all classes
@@ -50,6 +51,10 @@ SUPABASE_PUBLISHABLE_KEY="YOUR_SUPABASE_PUBLISHABLE_KEY"
 # Optional alias if you have an anon key name in Supabase:
 # SUPABASE_ANON_KEY="YOUR_SUPABASE_ANON_KEY"
 SUPABASE_SERVICE_ROLE_KEY="YOUR_SUPABASE_SERVICE_ROLE_KEY"
+GROQ_API_KEY="YOUR_GROQ_API_KEY"
+GROQ_MODEL="llama-3.3-70b-versatile"
+# Optional custom endpoint:
+# GROQ_API_URL="https://api.groq.com/openai/v1/chat/completions"
 CORS_ORIGINS="https://YOUR-VERCEL-DOMAIN.vercel.app,http://localhost:5173"
 PORT=4000
 ```
@@ -106,6 +111,9 @@ Member:
 - `GET /api/member/classes`
 - `POST /api/member/registrations`
 
+LLM:
+- `POST /api/llm/ask` (authenticated users)
+
 Promote user to admin:
 
 ```sql
@@ -143,6 +151,8 @@ Set environment variables in Render:
 - `SUPABASE_URL`
 - `SUPABASE_PUBLISHABLE_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
+- `GROQ_API_KEY`
+- `GROQ_MODEL`
 - `CORS_ORIGINS=https://YOUR-VERCEL-DOMAIN.vercel.app,http://localhost:5173`
 
 ### 8.2 Vercel Web project

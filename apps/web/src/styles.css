@@ -177,6 +177,25 @@ button.ghost {
   padding: 0.65rem 0.8rem;
 }
 
+.llm-answer {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 0.8rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.llm-answer p {
+  color: #334155;
+  white-space: pre-wrap;
+}
+
+.llm-meta {
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
 @media (max-width: 760px) {
   .page {
     padding: 0.8rem;

@@ -27,6 +27,13 @@ type AuthResponse = {
   role?: UserRole;
 };
 
+type LlmResponse = {
+  answer?: string;
+  model?: string;
+  error?: string;
+  details?: string;
+};
+
 const envApiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? "").trim();
 const apiBaseUrl = (envApiBaseUrl || "http://localhost:4000").replace(/\/$/, "");
 
@@ -77,6 +84,10 @@ export default function App() {
   const [createLoading, setCreateLoading] = useState(false);
 
   const [registeringClassId, setRegisteringClassId] = useState<string | null>(null);
+  const [question, setQuestion] = useState("");
+  const [llmAnswer, setLlmAnswer] = useState("");
+  const [llmModel, setLlmModel] = useState("");
+  const [llmLoading, setLlmLoading] = useState(false);
 
   const dashboardTitle = useMemo(() => {
     if (!currentRole) {
@@ -292,11 +303,69 @@ export default function App() {
     }
   }
 
+  async function handleAskLlm(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!accessToken) {
+      setStatus("Log in to ask AI questions.");
+      return;
+    }
+
+    const trimmedQuestion = question.trim();
+    if (trimmedQuestion.length < 2) {
+      setStatus("Question must be at least 2 characters.");
+      return;
+    }
+
+    setLlmLoading(true);
+    setStatus("");
+    setLlmAnswer("");
+    setLlmModel("");
+
+    try {
+      const response = await fetch(apiUrl("/api/llm/ask"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: JSON.stringify({ question: trimmedQuestion })
+      });
+
+      const data = await parseApiJson<LlmResponse>(response);
+
+      if (!response.ok) {
+        const details = data.details ? ` ${data.details}` : "";
+        setStatus(`${data.error ?? "Question failed."}${details}`);
+        return;
+      }
+
+      if (!data.answer) {
+        setStatus("The model did not return an answer.");
+        return;
+      }
+
+      setLlmAnswer(data.answer);
+      setLlmModel(data.model ?? "");
+    } catch (error) {
+      if (error instanceof Error) {
+        setStatus(error.message);
+        return;
+      }
+      setStatus("Could not reach the AI endpoint.");
+    } finally {
+      setLlmLoading(false);
+    }
+  }
+
   function logout() {
     setAccessToken(null);
     setCurrentRole(null);
     setAdminClasses([]);
     setMemberClasses([]);
+    setQuestion("");
+    setLlmAnswer("");
+    setLlmModel("");
     setStatus("Logged out.");
   }
 
@@ -484,6 +553,31 @@ export default function App() {
                   );
                 })}
               </ul>
+            )}
+          </section>
+        )}
+
+        {accessToken && (
+          <section className="stack">
+            <h2>Ask AI</h2>
+            <form onSubmit={handleAskLlm} className="stack">
+              <textarea
+                rows={4}
+                placeholder="Ask anything about your classes, registrations, or next steps..."
+                value={question}
+                onChange={(event) => setQuestion(event.target.value)}
+                required
+              />
+              <button type="submit" disabled={llmLoading}>
+                {llmLoading ? "Thinking..." : "Submit Question"}
+              </button>
+            </form>
+
+            {llmAnswer && (
+              <article className="llm-answer">
+                <p>{llmAnswer}</p>
+                {llmModel && <p className="llm-meta">Model: {llmModel}</p>}
+              </article>
             )}
           </section>
         )}
